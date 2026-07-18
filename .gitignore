@@ -28,6 +28,13 @@ coverage/
 !.vscode/extensions.json
 .DS_Store
 
+# AI tooling (Claude Code skills) — local dev convenience only, not required
+# to build/run/test the app; not committed to keep the public repo focused
+# on the product. Reinstall via: npx skills@latest add mattpocock/skills
+.claude/
+.agents/
+skills-lock.json
+
 # misc
 *.pem
 tmp/

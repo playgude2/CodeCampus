@@ -84,8 +84,29 @@ src/
 | `pnpm start:worker:dev` | Run a judge worker |
 | `pnpm migration:generate src/database/migrations/<Name>` | Generate a migration from entity changes |
 | `pnpm migration:run` | Apply pending migrations |
+| `pnpm seed` | Idempotent local-dev seed (users, a classroom, a problem, an assignment) |
 | `pnpm test` / `pnpm test:e2e` | Unit / e2e tests |
 | `pnpm lint` / `pnpm typecheck` | Lint / type-check |
+
+## Testing
+
+- **Unit tests** (`pnpm test`) cover the pure/critical logic: verdict classification, output
+  normalization, driver-code merging, the judge concurrency semaphore, the assignment status
+  state machine, award-on-accept scoring, and the role-escalation guard. No external services
+  required.
+- **e2e tests** (`pnpm test:e2e`) boot ephemeral Postgres + Redis containers via
+  [Testcontainers](https://node.testcontainers.org), apply every real migration, and run the full
+  Nest app — auth, RBAC, rate limiting, and the complete async judge pipeline (BullMQ queue → real
+  worker → verdict → DB writes → scoring event) — with only the Piston sandbox call itself faked,
+  so runs are fast and deterministic. Requires Docker running locally.
+
+Runtime requires **Node ≥ 20** (`engines.node`, matches the Dockerfile's `node:20` base):
+Testcontainers' HTTP wait-strategy needs the `File`/`Blob` globals Jest's sandboxed `node` test
+environment doesn't forward on its own (bridged via a `setupFiles` polyfill,
+`test/utils/jest.setup.ts`, from `node:buffer`); and `pdfjs-dist` v6's Node ("legacy") build throws
+`DOMMatrix is not defined` at import time under Node 18 (verified on 18.12.1 and 18.20.6 — even the
+newest 18.x patch) but imports and extracts text cleanly under Node 20+. If your default Node is
+older, switch via nvm: `nvm use 20`.
 
 ## License
 

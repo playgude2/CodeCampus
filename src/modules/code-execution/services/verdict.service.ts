@@ -60,7 +60,11 @@ export class VerdictService {
     // DeprecationWarning, Node warnings, JVM "Picked up JAVA_TOOL_OPTIONS",
     // debug prints, ...) while still exiting 0; treating any stderr output as
     // a failure would mislabel those accepted solutions as Runtime Error.
-    if (run.status === 'RE' || (run.code !== null && run.code !== 0)) {
+    // A process killed by any signal (fork-bomb protection, external limits,
+    // a non-memory-related kill that didn't meet the MLE threshold above)
+    // never produces a normal exit code — `run.code` stays null — so it must
+    // be checked explicitly, not just inferred from a nonzero code.
+    if (run.status === 'RE' || run.signal !== null || (run.code !== null && run.code !== 0)) {
       // Interpreted-language syntax errors surface here; keep the historical
       // Syntax Error label for that specific signature.
       if (!ctx.compiled && /SyntaxError|IndentationError/.test(run.stderr)) {

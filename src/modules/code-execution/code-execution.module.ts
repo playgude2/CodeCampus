@@ -41,6 +41,6 @@ import { VerdictService } from './services/verdict.service';
     SubmissionsGateway,
     JudgeProcessor,
   ],
-  exports: [JudgeService, ExecutorService, VerdictService],
+  exports: [JudgeService, ExecutorService, VerdictService, DriverMergeService],
 })
 export class CodeExecutionModule {}

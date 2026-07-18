@@ -21,6 +21,7 @@ import { CodeExecutionModule } from './modules/code-execution/code-execution.mod
 import { GradingModule } from './modules/grading/grading.module';
 import { PlaygroundModule } from './modules/playground/playground.module';
 import { DemoModule } from './modules/demo/demo.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -37,6 +38,9 @@ import { DemoModule } from './modules/demo/demo.module';
         return {
           throttlers: [
             { name: 'minute', ttl: 60_000, limit: 60 },
+            // Generous baseline — only the AI generation endpoint tightens
+            // this via a per-route @Throttle() override (AI_RATE_LIMIT_PER_HOUR).
+            { name: 'hour', ttl: 3_600_000, limit: 1000 },
             { name: 'day', ttl: 86_400_000, limit: t.globalPerDay },
           ],
         };
@@ -56,6 +60,7 @@ import { DemoModule } from './modules/demo/demo.module';
     GradingModule,
     PlaygroundModule,
     DemoModule,
+    AiModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
