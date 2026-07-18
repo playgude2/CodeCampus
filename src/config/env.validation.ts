@@ -6,9 +6,7 @@ import * as Joi from 'joi';
  */
 export const envValidationSchema = Joi.object({
   // App
-  NODE_ENV: Joi.string()
-    .valid('development', 'test', 'production')
-    .default('development'),
+  NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
   PORT: Joi.number().port().default(3000),
   API_PREFIX: Joi.string().default('api/v1'),
   CORS_ORIGINS: Joi.string().allow('').default(''),
@@ -29,9 +27,10 @@ export const envValidationSchema = Joi.object({
   REDIS_PASSWORD: Joi.string().allow('').default(''),
   REDIS_DB: Joi.number().default(0),
 
-  // Auth
-  JWT_ACCESS_SECRET: Joi.string().min(8).required(),
-  JWT_REFRESH_SECRET: Joi.string().min(8).required(),
+  // Auth — secrets must be long enough to resist offline brute-force of the
+  // HMAC (these sign the access/refresh JWTs; a short secret is forgeable).
+  JWT_ACCESS_SECRET: Joi.string().min(32).required(),
+  JWT_REFRESH_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_TTL: Joi.string().default('1d'),
   JWT_REFRESH_TTL: Joi.string().default('7d'),
   AUTH_COOKIE_DOMAIN: Joi.string().default('localhost'),

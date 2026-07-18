@@ -1,12 +1,12 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { SubmissionResponseDto } from './dto/submission-response.dto';
 import { SubmissionsService } from './submissions.service';
 
 @ApiTags('submissions')
-@ApiBearerAuth()
+@ApiCookieAuth('access_token')
 @Controller('submissions')
 export class SubmissionsController {
   constructor(private readonly submissions: SubmissionsService) {}

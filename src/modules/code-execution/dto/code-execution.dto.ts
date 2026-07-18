@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsEnum,
@@ -13,6 +14,10 @@ import { Language } from '../../../common/enums/language.enum';
 
 const CODE_MAX = 65536;
 const STDIN_MAX = 65536;
+// Real problems have a handful of sample cases; this bounds one /run request
+// to a small, fixed amount of sandbox work (each entry drives a real Piston
+// execution) rather than letting a client-controlled array size drive it.
+const SAMPLE_TESTCASES_MAX = 20;
 
 export class SubmitCodeDto {
   @ApiProperty()
@@ -55,9 +60,10 @@ export class RunCodeDto {
   @MaxLength(CODE_MAX)
   userCode!: string;
 
-  @ApiProperty({ type: [SampleTestcaseDto] })
+  @ApiProperty({ type: [SampleTestcaseDto], maxItems: SAMPLE_TESTCASES_MAX })
   @IsArray()
   @ArrayNotEmpty()
+  @ArrayMaxSize(SAMPLE_TESTCASES_MAX)
   @ValidateNested({ each: true })
   @Type(() => SampleTestcaseDto)
   sampleTestcases!: SampleTestcaseDto[];

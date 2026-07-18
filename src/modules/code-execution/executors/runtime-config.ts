@@ -18,7 +18,11 @@ export interface LanguageRuntime {
  */
 export const LANGUAGE_RUNTIMES: Record<Language, Omit<LanguageRuntime, 'version'>> = {
   [Language.PYTHON]: { pistonLanguage: 'python', mainFilename: 'main.py', compiled: false },
-  [Language.JAVASCRIPT]: { pistonLanguage: 'javascript', mainFilename: 'script.js', compiled: false },
+  [Language.JAVASCRIPT]: {
+    pistonLanguage: 'javascript',
+    mainFilename: 'script.js',
+    compiled: false,
+  },
   [Language.JAVA]: { pistonLanguage: 'java', mainFilename: 'Main.java', compiled: true },
   [Language.CPP]: { pistonLanguage: 'cpp', mainFilename: 'main.cpp', compiled: true },
 };

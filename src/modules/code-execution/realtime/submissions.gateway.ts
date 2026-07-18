@@ -1,4 +1,4 @@
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -23,7 +23,7 @@ import { SUBMISSION_EVENTS_CHANNEL, SubmissionEvent } from './submission-events.
  * handshake token). Relays judge events published to Redis by the worker.
  */
 @WebSocketGateway({ namespace: '/ws/submissions', cors: { credentials: true } })
-export class SubmissionsGateway implements OnGatewayInit, OnGatewayConnection {
+export class SubmissionsGateway implements OnGatewayInit, OnGatewayConnection, OnModuleDestroy {
   private readonly logger = new Logger(SubmissionsGateway.name);
   private readonly authCfg: AuthConfig;
   private subscriber?: Redis;
@@ -55,6 +55,13 @@ export class SubmissionsGateway implements OnGatewayInit, OnGatewayConnection {
         this.logger.warn(`Bad submission event: ${String(err)}`);
       }
     });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    // The duplicated pub/sub connection is never torn down by Nest itself
+    // (ioredis doesn't implement lifecycle hooks) — without this, every
+    // shutdown/restart leaked one Redis connection.
+    await this.subscriber?.quit();
   }
 
   handleConnection(client: Socket): void {

@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { UpdateScoreDto } from './dto/grading.dto';
 import { GradingService } from './grading.service';
 
 @ApiTags('grading')
-@ApiBearerAuth()
+@ApiCookieAuth('access_token')
 @Controller('grading')
 export class GradingController {
   constructor(private readonly grading: GradingService) {}

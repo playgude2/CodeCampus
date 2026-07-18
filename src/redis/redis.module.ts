@@ -1,4 +1,4 @@
-import { Global, Module, OnModuleDestroy } from '@nestjs/common';
+import { Global, Inject, Module, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { RedisConfig } from '../config/configuration';
@@ -31,7 +31,13 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
   exports: [REDIS_CLIENT],
 })
 export class RedisModule implements OnModuleDestroy {
-  onModuleDestroy(): void {
-    // ioredis clients are cleaned up on app shutdown via Nest lifecycle.
+  // Injecting the token into the module class itself (Nest supports this)
+  // gives us a lifecycle hook to run on shutdown — ioredis instances don't
+  // implement OnModuleDestroy themselves, so nothing closes the connection
+  // otherwise, leaking a socket on every graceful shutdown/restart.
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+
+  async onModuleDestroy(): Promise<void> {
+    await this.redis.quit();
   }
 }

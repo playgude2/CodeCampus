@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SUBMISSION_FINALIZED, SubmissionFinalizedEvent } from '../../../common/events/submission-events';
+import {
+  SUBMISSION_FINALIZED,
+  SubmissionFinalizedEvent,
+} from '../../../common/events/submission-events';
 import { AssignmentProblem } from '../../assignments/entities/assignment-problem.entity';
 import { ProblemTemplate } from '../../assignments/entities/problem-template.entity';
 import { TestCase } from '../../problems/entities/test-case.entity';
@@ -37,7 +40,8 @@ export class JudgeService {
     @InjectRepository(ExecutionJob) private readonly jobs: Repository<ExecutionJob>,
     @InjectRepository(ProblemTemplate) private readonly templates: Repository<ProblemTemplate>,
     @InjectRepository(TestCase) private readonly testCases: Repository<TestCase>,
-    @InjectRepository(AssignmentProblem) private readonly assignmentProblems: Repository<AssignmentProblem>,
+    @InjectRepository(AssignmentProblem)
+    private readonly assignmentProblems: Repository<AssignmentProblem>,
     private readonly executor: ExecutorService,
     private readonly verdict: VerdictService,
     private readonly driverMerge: DriverMergeService,
@@ -60,7 +64,9 @@ export class JudgeService {
     await this.markRunning(submission);
 
     try {
-      const ap = await this.assignmentProblems.findOne({ where: { id: submission.assignmentProblemId } });
+      const ap = await this.assignmentProblems.findOne({
+        where: { id: submission.assignmentProblemId },
+      });
       if (!ap) return this.finalize(submission, SubmissionStatus.INTERNAL_ERROR, [], 0);
 
       const template = await this.templates.findOne({
@@ -76,7 +82,9 @@ export class JudgeService {
 
       // Compile/syntax errors short-circuit the aggregate to that verdict.
       const compileFail = outcomes.find(
-        (o) => o.verdict === SubmissionStatus.COMPILE_ERROR || o.verdict === SubmissionStatus.SYNTAX_ERROR,
+        (o) =>
+          o.verdict === SubmissionStatus.COMPILE_ERROR ||
+          o.verdict === SubmissionStatus.SYNTAX_ERROR,
       );
       await this.persistResults(submission.id, outcomes);
       await this.finalize(
@@ -102,14 +110,20 @@ export class JudgeService {
     await this.emitStatus(submission);
   }
 
-  private async runAll(submission: Submission, cases: TestCase[], fullCode: string): Promise<TcOutcome[]> {
+  private async runAll(
+    submission: Submission,
+    cases: TestCase[],
+    fullCode: string,
+  ): Promise<TcOutcome[]> {
     const rt = this.executor.getRuntime(submission.language);
     const defaults = this.executor.defaultOptions();
 
     const runOne = async (tc: TestCase, index: number): Promise<TcOutcome> => {
       const opts = {
         timeoutMs: tc.timeLimitMs ?? defaults.timeoutMs,
-        memoryLimitBytes: tc.memoryLimitBytes ? Number(tc.memoryLimitBytes) : defaults.memoryLimitBytes,
+        memoryLimitBytes: tc.memoryLimitBytes
+          ? Number(tc.memoryLimitBytes)
+          : defaults.memoryLimitBytes,
         maxProcessCount: defaults.maxProcessCount,
       };
       const raw = await this.executor.execute(submission.language, fullCode, tc.inputData, opts);
@@ -206,7 +220,9 @@ export class JudgeService {
       { status: ExecutionJobStatus.COMPLETED, finishedAt: new Date() },
     );
     await this.emitStatus(submission);
-    this.emitter.emit(SUBMISSION_FINALIZED, { submissionId: submission.id } as SubmissionFinalizedEvent);
+    this.emitter.emit(SUBMISSION_FINALIZED, {
+      submissionId: submission.id,
+    } as SubmissionFinalizedEvent);
   }
 
   // ---- helpers ----
@@ -229,7 +245,11 @@ export class JudgeService {
     });
   }
 
-  private async emitTestcase(submission: Submission, ordinal: number, verdict: SubmissionStatus): Promise<void> {
+  private async emitTestcase(
+    submission: Submission,
+    ordinal: number,
+    verdict: SubmissionStatus,
+  ): Promise<void> {
     await this.events.publish({
       type: 'testcase',
       submissionId: submission.id,

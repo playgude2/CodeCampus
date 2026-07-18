@@ -10,16 +10,13 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AssignmentsService } from './assignments.service';
-import {
-  AssignmentProblemResponseDto,
-  AssignmentResponseDto,
-} from './dto/assignment-response.dto';
+import { AssignmentProblemResponseDto, AssignmentResponseDto } from './dto/assignment-response.dto';
 import {
   CloneProblemDto,
   CreateAssignmentDto,
@@ -30,7 +27,7 @@ import {
 } from './dto/assignment.dto';
 
 @ApiTags('assignments')
-@ApiBearerAuth()
+@ApiCookieAuth('access_token')
 @Controller('assignments')
 export class AssignmentsController {
   constructor(private readonly assignments: AssignmentsService) {}
@@ -121,7 +118,10 @@ export class AssignmentsController {
   @Post(':id/publish-grades')
   @Roles(Role.ADMIN, Role.PROFESSOR)
   @HttpCode(200)
-  async publishGrades(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthenticatedUser) {
+  async publishGrades(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return AssignmentResponseDto.from(await this.assignments.publishGrades(id, actor));
   }
 

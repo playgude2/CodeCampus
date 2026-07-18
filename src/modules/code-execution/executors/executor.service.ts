@@ -20,7 +20,10 @@ export interface ExecOptions {
 export class ExecutorService {
   private readonly runtime: RuntimeConfig;
 
-  constructor(config: ConfigService, private readonly piston: PistonClient) {
+  constructor(
+    config: ConfigService,
+    private readonly piston: PistonClient,
+  ) {
     this.runtime = config.getOrThrow<RuntimeConfig>('runtime');
   }
 

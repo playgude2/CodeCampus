@@ -1,9 +1,11 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { SUBMISSION_FINALIZED, SubmissionFinalizedEvent } from '../../common/events/submission-events';
-import { Role } from '../../common/enums/role.enum';
+import { In, Repository } from 'typeorm';
+import {
+  SUBMISSION_FINALIZED,
+  SubmissionFinalizedEvent,
+} from '../../common/events/submission-events';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AssignmentProblem } from '../assignments/entities/assignment-problem.entity';
 import { Assignment } from '../assignments/entities/assignment.entity';
@@ -21,9 +23,11 @@ export class GradingService {
 
   constructor(
     @InjectRepository(ProblemScore) private readonly problemScores: Repository<ProblemScore>,
-    @InjectRepository(AssignmentScore) private readonly assignmentScores: Repository<AssignmentScore>,
+    @InjectRepository(AssignmentScore)
+    private readonly assignmentScores: Repository<AssignmentScore>,
     @InjectRepository(Submission) private readonly submissions: Repository<Submission>,
-    @InjectRepository(AssignmentProblem) private readonly assignmentProblems: Repository<AssignmentProblem>,
+    @InjectRepository(AssignmentProblem)
+    private readonly assignmentProblems: Repository<AssignmentProblem>,
     @InjectRepository(Assignment) private readonly assignments: Repository<Assignment>,
     private readonly classrooms: ClassroomsService,
   ) {}
@@ -69,14 +73,78 @@ export class GradingService {
   }
 
   async getStudentScore(assignmentId: string, actor: AuthenticatedUser) {
+    // Self-service read (a student reading their own score) — no staff/grader
+    // gate needed, but the assignment must actually exist (404, not a silent
+    // zero-row response for a bogus id).
+    await this.assertAssignmentExists(assignmentId);
     return this.buildStudentScore(assignmentId, actor.id);
   }
 
+  /**
+   * Professor gradebook. Batches all students' scores into two queries
+   * total (instead of ~3 queries per student) — the assignment-problem list
+   * and any per-student read are identical across students, so N students
+   * previously issued ~3N round-trips.
+   */
   async getStudentsScore(assignmentId: string, actor: AuthenticatedUser) {
     const classroom = await this.classroomForAssignment(assignmentId);
     this.assertStaffOrGrader(actor, classroom);
     const students = classroom.students ?? [];
-    return Promise.all(students.map((s) => this.buildStudentScore(assignmentId, s.id)));
+    if (!students.length) return [];
+
+    const aps = await this.assignmentProblems.find({
+      where: { assignmentId },
+      relations: { problem: true },
+    });
+    const studentIds = students.map((s) => s.id);
+    const apIds = aps.map((ap) => ap.id);
+
+    const [allScores, allAssignmentScores] = await Promise.all([
+      apIds.length
+        ? this.problemScores.find({
+            where: { assignmentProblemId: In(apIds), userId: In(studentIds) },
+          })
+        : Promise.resolve([]),
+      this.assignmentScores.find({ where: { assignmentId, userId: In(studentIds) } }),
+    ]);
+
+    const scoresByUser = new Map<string, Map<string, ProblemScore>>();
+    for (const s of allScores) {
+      if (!scoresByUser.has(s.userId)) scoresByUser.set(s.userId, new Map());
+      scoresByUser.get(s.userId)!.set(s.assignmentProblemId, s);
+    }
+    const assignmentScoreByUser = new Map(allAssignmentScores.map((a) => [a.userId, a]));
+    const maxScore = aps.reduce((sum, ap) => sum + ap.score, 0);
+
+    return students.map((student) => {
+      const byAp = scoresByUser.get(student.id) ?? new Map<string, ProblemScore>();
+      const problems = aps.map((ap) => {
+        const s = byAp.get(ap.id);
+        return {
+          assignmentProblemId: ap.id,
+          problemId: ap.problemId,
+          title: ap.problem?.title ?? '',
+          maxScore: ap.score,
+          score: s?.score ?? 0,
+          submissionCount: s?.submissionCount ?? 0,
+          solved: (s?.submissionId ?? null) !== null && (s?.score ?? 0) > 0,
+          feedback: s?.feedback ?? '',
+        };
+      });
+      const assignmentScore = assignmentScoreByUser.get(student.id) ?? {
+        finalScore: 0,
+        feedback: '',
+      };
+      return {
+        userId: student.id,
+        assignmentScore: {
+          finalScore: assignmentScore.finalScore,
+          maxScore,
+          feedback: assignmentScore.feedback,
+        },
+        problems,
+      };
+    });
   }
 
   async updateScore(
@@ -92,6 +160,9 @@ export class GradingService {
     if (!ap) throw new NotFoundException('Assignment problem not found');
     const classroom = await this.classrooms.getById(ap.assignment.classroomId);
     this.assertStaffOrGrader(actor, classroom);
+    if (dto.score > ap.score) {
+      throw new BadRequestException(`Score cannot exceed the problem's max points (${ap.score})`);
+    }
 
     const ps = await this.getOrCreateProblemScore(apId, studentId);
     ps.score = dto.score;
@@ -102,8 +173,9 @@ export class GradingService {
     return ps;
   }
 
-  async getAssignmentScore(assignmentId: string, actor: AuthenticatedUser): Promise<AssignmentScore> {
-    return this.getOrCreateAssignmentScore(assignmentId, actor.id);
+  async getAssignmentScore(assignmentId: string, actor: AuthenticatedUser) {
+    await this.assertAssignmentExists(assignmentId);
+    return this.readAssignmentScore(assignmentId, actor.id);
   }
 
   // ---- helpers ----
@@ -136,7 +208,7 @@ export class GradingService {
       };
     });
 
-    const assignmentScore = await this.getOrCreateAssignmentScore(assignmentId, userId);
+    const assignmentScore = await this.readAssignmentScore(assignmentId, userId);
     const maxScore = aps.reduce((sum, ap) => sum + ap.score, 0);
     return {
       userId,
@@ -155,19 +227,45 @@ export class GradingService {
       relations: { submission: true },
     });
     if (!ps) {
-      ps = this.problemScores.create({ assignmentProblemId: apId, userId, score: 0, submissionCount: 0 });
+      ps = this.problemScores.create({
+        assignmentProblemId: apId,
+        userId,
+        score: 0,
+        submissionCount: 0,
+      });
       ps = await this.problemScores.save(ps);
     }
     return ps;
   }
 
-  private async getOrCreateAssignmentScore(assignmentId: string, userId: string): Promise<AssignmentScore> {
+  private async getOrCreateAssignmentScore(
+    assignmentId: string,
+    userId: string,
+  ): Promise<AssignmentScore> {
     let as = await this.assignmentScores.findOne({ where: { assignmentId, userId } });
     if (!as) {
       as = this.assignmentScores.create({ assignmentId, userId, finalScore: 0 });
       as = await this.assignmentScores.save(as);
     }
     return as;
+  }
+
+  /**
+   * Non-mutating counterpart to getOrCreateAssignmentScore for pure reads —
+   * a GET must never insert a row as a side effect. Returns a transient zero
+   * score when none exists yet (e.g. before the student's first submission).
+   */
+  private async readAssignmentScore(
+    assignmentId: string,
+    userId: string,
+  ): Promise<Pick<AssignmentScore, 'finalScore' | 'feedback'>> {
+    const existing = await this.assignmentScores.findOne({ where: { assignmentId, userId } });
+    return existing ?? { finalScore: 0, feedback: '' };
+  }
+
+  private async assertAssignmentExists(assignmentId: string): Promise<void> {
+    const exists = await this.assignments.exist({ where: { id: assignmentId } });
+    if (!exists) throw new NotFoundException('Assignment not found');
   }
 
   private async recomputeAssignmentScore(assignmentId: string, userId: string): Promise<void> {
@@ -191,9 +289,8 @@ export class GradingService {
   }
 
   private assertStaffOrGrader(actor: AuthenticatedUser, classroom: Classroom): void {
-    if (actor.role === Role.ADMIN) return;
-    if (classroom.createdById === actor.id || classroom.professorId === actor.id) return;
-    if (classroom.graders?.some((g) => g.id === actor.id)) return;
-    throw new ForbiddenException('You do not have grading access to this classroom');
+    // Delegates to the shared staff/grader policy in ClassroomsService so
+    // assignments/grading/submissions all enforce the identical rule.
+    this.classrooms.assertStaffOrGrader(actor, classroom);
   }
 }

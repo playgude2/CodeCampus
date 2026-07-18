@@ -31,9 +31,7 @@ export class NormalizerService {
       case 'JSON':
         return this.jsonEqual(act, exp) ?? act === exp;
       case 'PYTHON_LITERAL':
-        return (
-          this.jsonEqual(this.pythonToJson(act), this.pythonToJson(exp)) ?? act === exp
-        );
+        return this.jsonEqual(this.pythonToJson(act), this.pythonToJson(exp)) ?? act === exp;
       case 'NUMERIC_TOLERANT':
         return this.numericEqual(act, exp, config.numericTolerance ?? 1e-6);
       case 'NONE':

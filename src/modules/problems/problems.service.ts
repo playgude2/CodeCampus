@@ -8,12 +8,7 @@ import { CreateProblemDto } from './dto/create-problem.dto';
 import { QueryProblemsDto } from './dto/query-problems.dto';
 import { TestCaseInputDto } from './dto/test-case.dto';
 import { UpdateProblemDto } from './dto/update-problem.dto';
-import {
-  Difficulty,
-  ProblemSource,
-  ProblemVisibility,
-  TestCaseType,
-} from './enums/problem.enums';
+import { Difficulty, ProblemSource, ProblemVisibility, TestCaseType } from './enums/problem.enums';
 import { Problem } from './entities/problem.entity';
 import { Tag } from './entities/tag.entity';
 import { TestCase } from './entities/test-case.entity';
@@ -60,19 +55,29 @@ export class ProblemsService {
     return this.getById(id);
   }
 
-  async findAll(query: QueryProblemsDto, actor: AuthenticatedUser): Promise<PaginatedResult<Problem>> {
+  async findAll(
+    query: QueryProblemsDto,
+    actor: AuthenticatedUser,
+  ): Promise<PaginatedResult<Problem>> {
     const qb = this.problems
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.tags', 'tag')
       .orderBy('p.createdAt', 'DESC');
 
-    // Visibility: shared problems, all human-authored library problems, or own.
-    qb.andWhere(
-      '(p.visibility = :shared OR p.source = :human OR p.created_by_id = :uid)',
-      { shared: ProblemVisibility.SHARED, human: ProblemSource.HUMAN, uid: actor.id },
-    );
+    // Visibility: shared problems or the actor's own (private problems from
+    // other users stay hidden). Admins see everything. NOTE: `source`
+    // (human/ai provenance) must not be used as a visibility signal — every
+    // human-created problem defaults to source=human, so gating on it here
+    // would make PRIVATE meaningless for the dominant case.
+    if (actor.role !== Role.ADMIN) {
+      qb.andWhere('(p.visibility = :shared OR p.created_by_id = :uid)', {
+        shared: ProblemVisibility.SHARED,
+        uid: actor.id,
+      });
+    }
 
-    if (query.difficulty) qb.andWhere('p.difficulty = :difficulty', { difficulty: query.difficulty });
+    if (query.difficulty)
+      qb.andWhere('p.difficulty = :difficulty', { difficulty: query.difficulty });
     if (query.search) qb.andWhere('p.title ILIKE :search', { search: `%${query.search}%` });
     if (query.tag) {
       qb.andWhere(
@@ -101,14 +106,31 @@ export class ProblemsService {
   }
 
   /** Full detail incl. test cases filtered by role (students see samples only). */
-  async findOne(id: string, actor: AuthenticatedUser): Promise<Problem & { testCases: TestCase[] }> {
+  async findOne(
+    id: string,
+    actor: AuthenticatedUser,
+  ): Promise<Problem & { testCases: TestCase[] }> {
     const problem = await this.getById(id);
+    this.assertVisible(actor, problem);
     const testCases = await this.getTestCases(id, actor);
     return Object.assign(problem, { testCases });
   }
 
+  /**
+   * Direct-by-id access must respect the same visibility rule as findAll —
+   * otherwise a PRIVATE problem is hidden from listings but still fully
+   * readable (statement, tags, etc.) by anyone who has/guesses its id.
+   */
+  private assertVisible(actor: AuthenticatedUser, problem: Problem): void {
+    if (actor.role === Role.ADMIN) return;
+    if (problem.visibility === ProblemVisibility.SHARED) return;
+    if (problem.createdById === actor.id) return;
+    throw new ForbiddenException('You cannot view this problem');
+  }
+
   async getTestCases(problemId: string, actor: AuthenticatedUser): Promise<TestCase[]> {
-    await this.getById(problemId);
+    const problem = await this.getById(problemId);
+    this.assertVisible(actor, problem);
     const qb = this.testCases
       .createQueryBuilder('tc')
       .where('tc.problem_id = :problemId', { problemId })
@@ -139,7 +161,11 @@ export class ProblemsService {
     await this.problems.remove(problem);
   }
 
-  async addTestCase(problemId: string, dto: TestCaseInputDto, actor: AuthenticatedUser): Promise<TestCase> {
+  async addTestCase(
+    problemId: string,
+    dto: TestCaseInputDto,
+    actor: AuthenticatedUser,
+  ): Promise<TestCase> {
     const problem = await this.getById(problemId);
     this.assertOwnerOrAdmin(actor, problem);
     const tc = this.testCases.create({

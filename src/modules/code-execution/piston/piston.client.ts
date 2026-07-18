@@ -122,7 +122,10 @@ export class PistonClient implements OnModuleDestroy {
   }
 
   private pickReplica(): Replica {
-    return this.replicas.reduce((best, r) => (r.inFlight < best.inFlight ? r : best), this.replicas[0]);
+    return this.replicas.reduce(
+      (best, r) => (r.inFlight < best.inFlight ? r : best),
+      this.replicas[0],
+    );
   }
 
   async onModuleDestroy(): Promise<void> {

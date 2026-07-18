@@ -33,7 +33,8 @@ import { AssignmentStatus, VISIBLE_TO_STUDENTS } from './enums/assignment-status
 export class AssignmentsService {
   constructor(
     @InjectRepository(Assignment) private readonly assignments: Repository<Assignment>,
-    @InjectRepository(AssignmentProblem) private readonly assignmentProblems: Repository<AssignmentProblem>,
+    @InjectRepository(AssignmentProblem)
+    private readonly assignmentProblems: Repository<AssignmentProblem>,
     @InjectRepository(ProblemTemplate) private readonly templates: Repository<ProblemTemplate>,
     @InjectRepository(Problem) private readonly problems: Repository<Problem>,
     @InjectRepository(TestCase) private readonly testCases: Repository<TestCase>,
@@ -58,12 +59,15 @@ export class AssignmentsService {
       endDate: end,
       classroomId: dto.classroomId,
       createdById: actor.id,
-      status: AssignmentStatus.SCHEDULED,
+      status: dto.asDraft ? AssignmentStatus.DRAFT : AssignmentStatus.SCHEDULED,
     });
     return this.assignments.save(assignment);
   }
 
-  async findAll(query: QueryAssignmentsDto, actor: AuthenticatedUser): Promise<PaginatedResult<Assignment>> {
+  async findAll(
+    query: QueryAssignmentsDto,
+    actor: AuthenticatedUser,
+  ): Promise<PaginatedResult<Assignment>> {
     const qb = this.assignments.createQueryBuilder('a').orderBy('a.createdAt', 'DESC');
     if (query.classroomId) qb.andWhere('a.classroom_id = :cid', { cid: query.classroomId });
 
@@ -105,7 +109,11 @@ export class AssignmentsService {
     return assignment;
   }
 
-  async update(id: string, dto: UpdateAssignmentDto, actor: AuthenticatedUser): Promise<Assignment> {
+  async update(
+    id: string,
+    dto: UpdateAssignmentDto,
+    actor: AuthenticatedUser,
+  ): Promise<Assignment> {
     const assignment = await this.getById(id);
     await this.assertCanManageAssignment(actor, assignment);
     if (dto.title !== undefined) assignment.title = dto.title;
@@ -130,8 +138,8 @@ export class AssignmentsService {
   }
 
   complete(id: string, actor: AuthenticatedUser): Promise<Assignment> {
-    return this.transition(id, actor, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED).then((a) =>
-      this.assignments.save(a),
+    return this.transition(id, actor, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED).then(
+      (a) => this.assignments.save(a),
     );
   }
 
@@ -170,7 +178,11 @@ export class AssignmentsService {
     });
   }
 
-  async importProblem(assignmentId: string, dto: ImportProblemDto, actor: AuthenticatedUser): Promise<AssignmentProblem> {
+  async importProblem(
+    assignmentId: string,
+    dto: ImportProblemDto,
+    actor: AuthenticatedUser,
+  ): Promise<AssignmentProblem> {
     const assignment = await this.getById(assignmentId);
     await this.assertCanManageAssignment(actor, assignment);
 
@@ -188,7 +200,11 @@ export class AssignmentsService {
     return this.getAssignmentProblem(apId);
   }
 
-  async cloneProblem(assignmentId: string, dto: CloneProblemDto, actor: AuthenticatedUser): Promise<AssignmentProblem> {
+  async cloneProblem(
+    assignmentId: string,
+    dto: CloneProblemDto,
+    actor: AuthenticatedUser,
+  ): Promise<AssignmentProblem> {
     const assignment = await this.getById(assignmentId);
     await this.assertCanManageAssignment(actor, assignment);
 
@@ -227,7 +243,15 @@ export class AssignmentsService {
         );
       }
       // Templates copied from the SOURCE problem's library templates.
-      return this.attachProblem(m, assignment.id, savedProblem.id, dto.score, dto.languages, false, source.id);
+      return this.attachProblem(
+        m,
+        assignment.id,
+        savedProblem.id,
+        dto.score,
+        dto.languages,
+        false,
+        source.id,
+      );
     });
     return this.getAssignmentProblem(apId);
   }
@@ -357,13 +381,15 @@ export class AssignmentsService {
   }
 
   private assertCanManage(actor: AuthenticatedUser, classroom: Classroom): void {
-    if (actor.role === Role.ADMIN) return;
-    if (classroom.createdById === actor.id || classroom.professorId === actor.id) return;
-    if (classroom.graders?.some((g) => g.id === actor.id)) return;
-    throw new ForbiddenException('You cannot manage assignments in this classroom');
+    // Delegates to the shared staff/grader policy in ClassroomsService so
+    // assignments/grading/submissions all enforce the identical rule.
+    this.classroomsService.assertStaffOrGrader(actor, classroom);
   }
 
-  private async assertCanManageAssignment(actor: AuthenticatedUser, assignment: Assignment): Promise<void> {
+  private async assertCanManageAssignment(
+    actor: AuthenticatedUser,
+    assignment: Assignment,
+  ): Promise<void> {
     const classroom = await this.classroomsService.getDetail(assignment.classroomId);
     this.assertCanManage(actor, classroom);
   }

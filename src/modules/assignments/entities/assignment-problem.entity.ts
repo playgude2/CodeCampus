@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, Unique } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, Unique } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Problem } from '../../problems/entities/problem.entity';
 import { Assignment } from './assignment.entity';
@@ -7,7 +7,8 @@ import { ProblemTemplate } from './problem-template.entity';
 @Entity('assignment_problems')
 @Unique('uq_assignment_problem', ['assignmentId', 'problemId'])
 export class AssignmentProblem extends BaseEntity {
-  @Index('idx_ap_assignment')
+  // No dedicated index here — the composite unique below (uq_assignment_problem)
+  // leads with assignment_id, so it already serves single-column lookups.
   @ManyToOne(() => Assignment, (a) => a.assignmentProblems, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'assignment_id' })
   assignment!: Assignment;

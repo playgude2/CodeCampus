@@ -22,15 +22,22 @@ export class UsersService {
     private readonly users: Repository<User>,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<User> {
+  /**
+   * `actor` is the authenticated caller creating this user (omitted for the
+   * public self-registration flow, which always forces role=student itself
+   * before calling in). Only an ADMIN actor may assign a non-default role —
+   * without this gate a PROFESSOR could mint an ADMIN account.
+   */
+  async create(dto: CreateUserDto, actor?: AuthenticatedUser): Promise<User> {
     const existing = await this.users.findOne({ where: { email: dto.email.toLowerCase() } });
     if (existing) throw new ConflictException('Email already registered');
 
+    const role = !actor || actor.role === Role.ADMIN ? (dto.role ?? Role.STUDENT) : Role.STUDENT;
     const user = this.users.create({
       email: dto.email.toLowerCase(),
       firstName: dto.firstName,
       lastName: dto.lastName,
-      role: dto.role ?? Role.STUDENT,
+      role,
       passwordHash: await this.hashPassword(dto.password),
     });
     return this.users.save(user);
@@ -55,7 +62,10 @@ export class UsersService {
       .getOne();
   }
 
-  async findAll(query: PaginationQueryDto, actor: AuthenticatedUser): Promise<PaginatedResult<User>> {
+  async findAll(
+    query: PaginationQueryDto,
+    actor: AuthenticatedUser,
+  ): Promise<PaginatedResult<User>> {
     const qb = this.users.createQueryBuilder('u').orderBy('u.createdAt', 'DESC');
 
     // Role scoping mirrors the original: admin sees all; professor sees
@@ -70,9 +80,13 @@ export class UsersService {
     return PaginatedResult.of(data, total, query);
   }
 
-  async search(dto: SearchUsersDto): Promise<User[]> {
+  async search(dto: SearchUsersDto, actor: AuthenticatedUser): Promise<User[]> {
+    // Mirror findAll's visibility rule: students may only discover students,
+    // regardless of the requested `type` (search is used for member pickers,
+    // not a general people-lookup — students should not enumerate staff).
+    const requestedType = actor.role === Role.STUDENT ? 'student' : dto.type;
     const roles =
-      dto.type === 'both' ? [Role.STUDENT, Role.PROFESSOR] : [dto.type as Role];
+      requestedType === 'both' ? [Role.STUDENT, Role.PROFESSOR] : [requestedType as Role];
     return this.users
       .createQueryBuilder('u')
       .where('u.role IN (:...roles)', { roles })
@@ -85,6 +99,20 @@ export class UsersService {
       )
       .limit(dto.limit)
       .getMany();
+  }
+
+  /** Role-scoped single-user lookup for the public GET /users/:id route. */
+  async findOneVisible(id: string, actor: AuthenticatedUser): Promise<User> {
+    const user = await this.getById(id);
+    if (!this.canView(actor, user)) throw new ForbiddenException('You cannot view this user');
+    return user;
+  }
+
+  private canView(actor: AuthenticatedUser, target: User): boolean {
+    if (actor.role === Role.ADMIN) return true;
+    if (actor.id === target.id) return true;
+    if (actor.role === Role.PROFESSOR) return target.role !== Role.ADMIN;
+    return target.role === Role.STUDENT;
   }
 
   async update(id: string, dto: UpdateUserDto, actor: AuthenticatedUser): Promise<User> {

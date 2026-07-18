@@ -46,7 +46,10 @@ export class ClassroomsService {
     return this.getDetail(saved.id);
   }
 
-  async findAll(query: PaginationQueryDto, actor: AuthenticatedUser): Promise<PaginatedResult<Classroom>> {
+  async findAll(
+    query: PaginationQueryDto,
+    actor: AuthenticatedUser,
+  ): Promise<PaginatedResult<Classroom>> {
     const qb = this.classrooms
       .createQueryBuilder('c')
       .leftJoinAndSelect('c.professor', 'professor')
@@ -145,17 +148,25 @@ export class ClassroomsService {
     await this.classrooms.remove(classroom);
   }
 
-  async getMembers(id: string, actor: AuthenticatedUser): Promise<{
+  async getMembers(
+    id: string,
+    actor: AuthenticatedUser,
+  ): Promise<{
     professor: User | null;
     students: User[];
     graders: User[];
   }> {
     const classroom = await this.findOne(id, actor);
-    return { professor: classroom.professor, students: classroom.students, graders: classroom.graders };
+    return {
+      professor: classroom.professor,
+      students: classroom.students,
+      graders: classroom.graders,
+    };
   }
 
   async removeProfessor(id: string, actor: AuthenticatedUser): Promise<Classroom> {
-    if (actor.role !== Role.ADMIN) throw new ForbiddenException('Only admins can remove a professor');
+    if (actor.role !== Role.ADMIN)
+      throw new ForbiddenException('Only admins can remove a professor');
     const classroom = await this.getDetail(id);
     classroom.professor = null;
     classroom.professorId = null;
@@ -195,7 +206,10 @@ export class ClassroomsService {
 
     const overlap = studentIds.filter((sid) => graderIds.includes(sid));
     if (overlap.length) throw new BadRequestException('A user cannot be both student and grader');
-    if (dto.professorId && (studentIds.includes(dto.professorId) || graderIds.includes(dto.professorId))) {
+    if (
+      dto.professorId &&
+      (studentIds.includes(dto.professorId) || graderIds.includes(dto.professorId))
+    ) {
       throw new BadRequestException('Professor cannot also be a student/grader');
     }
     if (studentIds.includes(creatorId) || graderIds.includes(creatorId)) {
@@ -229,9 +243,13 @@ export class ClassroomsService {
     return user;
   }
 
+  /** Roster/structure management (professor/admin only — graders excluded by design). */
   private assertCanManage(actor: AuthenticatedUser, classroom: Classroom): void {
     if (actor.role === Role.ADMIN) return;
-    if (actor.role === Role.PROFESSOR && (classroom.createdById === actor.id || classroom.professorId === actor.id)) {
+    if (
+      actor.role === Role.PROFESSOR &&
+      (classroom.createdById === actor.id || classroom.professorId === actor.id)
+    ) {
       return;
     }
     throw new ForbiddenException('You cannot manage this classroom');
@@ -245,5 +263,18 @@ export class ClassroomsService {
       classroom.graders.some((g) => g.id === actor.id);
     if (isMember) return;
     throw new ForbiddenException('You do not have access to this classroom');
+  }
+
+  /**
+   * Shared staff-or-grader policy for assignment/grading/submission data
+   * (distinct from assertCanManage: graders may access assignment content and
+   * grade, but do not manage the classroom roster itself). Centralized here
+   * so assignments/grading/submissions all enforce the identical rule.
+   */
+  assertStaffOrGrader(actor: AuthenticatedUser, classroom: Classroom): void {
+    if (actor.role === Role.ADMIN) return;
+    if (classroom.createdById === actor.id || classroom.professorId === actor.id) return;
+    if (classroom.graders?.some((g) => g.id === actor.id)) return;
+    throw new ForbiddenException('You do not have staff/grader access to this classroom');
   }
 }

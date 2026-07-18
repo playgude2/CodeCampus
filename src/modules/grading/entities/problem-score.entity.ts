@@ -7,7 +7,10 @@ import { User } from '../../users/entities/user.entity';
 @Entity('problem_scores')
 @Unique('uq_problem_score', ['assignmentProblemId', 'userId'])
 export class ProblemScore extends BaseEntity {
-  @Index('idx_problem_score_ap')
+  // No dedicated index on assignment_problem_id alone: the composite unique
+  // constraint below (uq_problem_score) leads with this column, so Postgres
+  // already serves single-column lookups from it — a separate index would
+  // just double the write cost on this hot (every-submission) table.
   @ManyToOne(() => AssignmentProblem, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'assignment_problem_id' })
   assignmentProblem!: AssignmentProblem;

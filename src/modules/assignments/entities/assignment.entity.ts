@@ -51,14 +51,13 @@ export class Assignment extends BaseEntity {
    * are never auto-transitioned.
    */
   applyTimeTransition(now: Date): boolean {
-    if (this.status === AssignmentStatus.DRAFT || this.status === AssignmentStatus.GRADE_PUBLISHED) {
+    if (
+      this.status === AssignmentStatus.DRAFT ||
+      this.status === AssignmentStatus.GRADE_PUBLISHED
+    ) {
       return false;
     }
-    if (
-      this.status === AssignmentStatus.SCHEDULED &&
-      this.startDate <= now &&
-      now < this.endDate
-    ) {
+    if (this.status === AssignmentStatus.SCHEDULED && this.startDate <= now && now < this.endDate) {
       this.status = AssignmentStatus.ACTIVE;
       return true;
     }

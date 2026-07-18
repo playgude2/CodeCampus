@@ -65,9 +65,12 @@ export class RunService {
       });
     }
 
-    const overall = results.every((r) => r.status === SubmissionStatus.ACCEPTED)
-      ? SubmissionStatus.ACCEPTED
-      : SubmissionStatus.WRONG_ANSWER;
+    // Overall status reflects the actual failure kind (matching
+    // JudgeService's "lowest-ordinal failing testcase" rule) instead of
+    // collapsing every non-pass into Wrong Answer — a Compile Error or TLE
+    // sample run should not be misreported as a wrong answer.
+    const firstFailure = results.find((r) => r.status !== SubmissionStatus.ACCEPTED);
+    const overall = firstFailure ? firstFailure.status : SubmissionStatus.ACCEPTED;
     return { status: overall, results };
   }
 }

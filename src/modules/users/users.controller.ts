@@ -10,7 +10,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
@@ -23,7 +23,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
-@ApiBearerAuth()
+@ApiCookieAuth('access_token')
 @Controller('users')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
@@ -34,8 +34,11 @@ export class UsersController {
   }
 
   @Get('search')
-  async search(@Query() dto: SearchUsersDto): Promise<UserResponseDto[]> {
-    const results = await this.users.search(dto);
+  async search(
+    @Query() dto: SearchUsersDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<UserResponseDto[]> {
+    const results = await this.users.search(dto, actor);
     return results.map(UserResponseDto.from);
   }
 
@@ -47,13 +50,19 @@ export class UsersController {
 
   @Post()
   @Roles(Role.ADMIN, Role.PROFESSOR)
-  async create(@Body() dto: CreateUserDto): Promise<UserResponseDto> {
-    return UserResponseDto.from(await this.users.create(dto));
+  async create(
+    @Body() dto: CreateUserDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<UserResponseDto> {
+    return UserResponseDto.from(await this.users.create(dto, actor));
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponseDto> {
-    return UserResponseDto.from(await this.users.getById(id));
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<UserResponseDto> {
+    return UserResponseDto.from(await this.users.findOneVisible(id, actor));
   }
 
   @Patch(':id')

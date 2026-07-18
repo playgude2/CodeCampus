@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -39,6 +40,16 @@ export class CreateAssignmentDto {
   @ApiProperty()
   @IsUUID()
   classroomId!: string;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Create as a hidden draft instead of scheduled. A draft never auto-activates by date and ' +
+      'must be explicitly opened via POST /:id/publish.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  asDraft?: boolean;
 }
 
 export class UpdateAssignmentDto extends PartialType(CreateAssignmentDto) {}

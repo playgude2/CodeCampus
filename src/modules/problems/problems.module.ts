@@ -10,13 +10,7 @@ import { ProblemsService } from './problems.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Problem,
-      TestCase,
-      Tag,
-      LibraryProblemTemplate,
-      UserProblemList,
-    ]),
+    TypeOrmModule.forFeature([Problem, TestCase, Tag, LibraryProblemTemplate, UserProblemList]),
   ],
   controllers: [ProblemsController],
   providers: [ProblemsService],

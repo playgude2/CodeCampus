@@ -23,7 +23,8 @@ export class ExecutionJob extends BaseEntity {
   @Column({ type: 'uuid', name: 'submission_id' })
   submissionId!: string;
 
-  @Index('idx_execution_job_queue_id', { unique: true })
+  // `unique: true` on the column already creates one unique index — an
+  // additional named @Index({unique:true}) here would just duplicate it.
   @Column({ type: 'varchar', length: 255, name: 'queue_job_id', unique: true })
   queueJobId!: string;
 

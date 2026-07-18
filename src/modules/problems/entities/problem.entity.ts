@@ -10,11 +10,7 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { User } from '../../users/entities/user.entity';
-import {
-  Difficulty,
-  ProblemSource,
-  ProblemVisibility,
-} from '../enums/problem.enums';
+import { Difficulty, ProblemSource, ProblemVisibility } from '../enums/problem.enums';
 import { LibraryProblemTemplate } from './library-problem-template.entity';
 import { Tag } from './tag.entity';
 import { TestCase } from './test-case.entity';

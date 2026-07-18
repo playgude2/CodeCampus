@@ -37,8 +37,10 @@ export const redisConfig = registerAs('redis', () => ({
 }));
 
 export const authConfig = registerAs('auth', () => ({
-  accessSecret: process.env.JWT_ACCESS_SECRET ?? 'change-me-access',
-  refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'change-me-refresh',
+  // Joi's envValidationSchema requires (and length-checks) these at boot, so
+  // the app never starts without them — no insecure fallback needed here.
+  accessSecret: process.env.JWT_ACCESS_SECRET as string,
+  refreshSecret: process.env.JWT_REFRESH_SECRET as string,
   accessTtl: process.env.JWT_ACCESS_TTL ?? '1d',
   refreshTtl: process.env.JWT_REFRESH_TTL ?? '7d',
   cookieDomain: process.env.AUTH_COOKIE_DOMAIN ?? 'localhost',

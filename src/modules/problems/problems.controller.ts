@@ -10,7 +10,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
@@ -23,7 +23,7 @@ import { UpdateProblemDto } from './dto/update-problem.dto';
 import { ProblemsService } from './problems.service';
 
 @ApiTags('problems')
-@ApiBearerAuth()
+@ApiCookieAuth('access_token')
 @Controller('problems')
 export class ProblemsController {
   constructor(private readonly problems: ProblemsService) {}

@@ -10,7 +10,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
@@ -23,7 +23,7 @@ import { CreateClassroomDto } from './dto/create-classroom.dto';
 import { UpdateClassroomDto } from './dto/update-classroom.dto';
 
 @ApiTags('classrooms')
-@ApiBearerAuth()
+@ApiCookieAuth('access_token')
 @Controller('classrooms')
 export class ClassroomsController {
   constructor(private readonly classrooms: ClassroomsService) {}
@@ -98,7 +98,10 @@ export class ClassroomsController {
     @Param('studentId', ParseUUIDPipe) studentId: string,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<ClassroomResponseDto> {
-    return ClassroomResponseDto.from(await this.classrooms.removeStudent(id, studentId, actor), true);
+    return ClassroomResponseDto.from(
+      await this.classrooms.removeStudent(id, studentId, actor),
+      true,
+    );
   }
 
   @Delete(':id/graders/:graderId')

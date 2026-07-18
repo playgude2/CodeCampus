@@ -6,7 +6,8 @@ import { User } from '../../users/entities/user.entity';
 @Entity('assignment_scores')
 @Unique('uq_assignment_score', ['assignmentId', 'userId'])
 export class AssignmentScore extends BaseEntity {
-  @Index('idx_assignment_score_assignment')
+  // No dedicated index here — the composite unique below (uq_assignment_score)
+  // leads with assignment_id, so it already serves single-column lookups.
   @ManyToOne(() => Assignment, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'assignment_id' })
   assignment!: Assignment;

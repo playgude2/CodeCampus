@@ -53,14 +53,14 @@ export class AuthService {
   private async issueTokens(user: AuthenticatedUser): Promise<TokenPair> {
     const base = { sub: user.id, email: user.email, role: user.role };
     const [access, refresh] = await Promise.all([
-      this.jwt.signAsync(
-        { ...base, type: 'access' } satisfies Omit<JwtPayload, 'iat' | 'exp'>,
-        { secret: this.auth.accessSecret, expiresIn: this.auth.accessTtl },
-      ),
-      this.jwt.signAsync(
-        { ...base, type: 'refresh' } satisfies Omit<JwtPayload, 'iat' | 'exp'>,
-        { secret: this.auth.refreshSecret, expiresIn: this.auth.refreshTtl },
-      ),
+      this.jwt.signAsync({ ...base, type: 'access' } satisfies Omit<JwtPayload, 'iat' | 'exp'>, {
+        secret: this.auth.accessSecret,
+        expiresIn: this.auth.accessTtl,
+      }),
+      this.jwt.signAsync({ ...base, type: 'refresh' } satisfies Omit<JwtPayload, 'iat' | 'exp'>, {
+        secret: this.auth.refreshSecret,
+        expiresIn: this.auth.refreshTtl,
+      }),
     ]);
     return { access, refresh };
   }
