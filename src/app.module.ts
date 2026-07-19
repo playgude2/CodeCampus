@@ -22,6 +22,7 @@ import { GradingModule } from './modules/grading/grading.module';
 import { PlaygroundModule } from './modules/playground/playground.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { AiModule } from './modules/ai/ai.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { AiModule } from './modules/ai/ai.module';
     GradingModule,
     PlaygroundModule,
     DemoModule,
+    BillingModule,
     AiModule,
   ],
   providers: [

@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { QUEUE_AI_GENERATE } from '../../queue/queue.constants';
+import { BillingModule } from '../billing/billing.module';
 import { CodeExecutionModule } from '../code-execution/code-execution.module';
 import { AiController } from './ai.controller';
 import { DriverSynthService } from './driver-synth/driver-synth.service';
@@ -21,6 +22,7 @@ import { AiGenerateProcessor } from './queue/ai-generate.processor';
     TypeOrmModule.forFeature([GenerationRequest, GeneratedProblemLink]),
     LlmModule,
     CodeExecutionModule,
+    BillingModule,
     BullModule.registerQueue({
       name: QUEUE_AI_GENERATE,
       defaultJobOptions: {

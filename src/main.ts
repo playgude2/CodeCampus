@@ -9,7 +9,10 @@ import { AppModule } from './app.module';
 import { AppConfig, AuthConfig } from './config/configuration';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: false });
+  // rawBody:true preserves the unparsed request body (as `req.rawBody`)
+  // alongside the normal parsed `req.body` — needed to verify the Stripe
+  // webhook's HMAC signature, which is computed over the exact raw bytes.
+  const app = await NestFactory.create(AppModule, { bufferLogs: false, rawBody: true });
 
   const config = app.get(ConfigService);
   const appCfg = config.getOrThrow<AppConfig>('app');
