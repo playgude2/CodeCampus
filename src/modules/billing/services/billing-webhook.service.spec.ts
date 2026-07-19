@@ -29,6 +29,7 @@ function uniqueViolation(): Error & { code: string } {
 describe('BillingWebhookService', () => {
   let events: MockRepo;
   let subscriptionsRepo: MockRepo;
+  let invoicesRepo: MockRepo;
   let subscriptionService: { upsertFromSnapshot: jest.Mock };
   let provider: FakeStripeProvider;
   let service: BillingWebhookService;
@@ -36,6 +37,7 @@ describe('BillingWebhookService', () => {
   beforeEach(() => {
     events = mockRepo();
     subscriptionsRepo = mockRepo();
+    invoicesRepo = mockRepo();
     subscriptionService = { upsertFromSnapshot: jest.fn().mockResolvedValue({}) };
     provider = new FakeStripeProvider();
     service = new BillingWebhookService(
@@ -43,6 +45,7 @@ describe('BillingWebhookService', () => {
       subscriptionService as any,
       events as any,
       subscriptionsRepo as any,
+      invoicesRepo as any,
     );
   });
 
@@ -171,5 +174,55 @@ describe('BillingWebhookService', () => {
       { provider: 'stripe', eventId: 'evt_5' },
       expect.objectContaining({ status: WebhookEventStatus.FAILED }),
     );
+  });
+
+  it('records a paid invoice, linking it to the local subscription row when one exists', async () => {
+    provider.seedCustomer('cus_9', 'user-9');
+    subscriptionsRepo.findOneBy.mockResolvedValue({ id: 'local-sub-9' });
+    provider.queueWebhookEvent({
+      id: 'evt_inv_1',
+      type: 'invoice.paid',
+      data: {
+        id: 'in_1',
+        customer: 'cus_9',
+        amount_paid: 1900,
+        currency: 'usd',
+        status: 'paid',
+        period_start: 1_700_000_000,
+        period_end: 1_702_592_000,
+        hosted_invoice_url: 'https://stripe.test/invoice/in_1',
+        parent: { subscription_details: { subscription: 'sub_9' } },
+      },
+    });
+
+    await service.handle(Buffer.from('{}'), 'valid');
+
+    expect(invoicesRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-9', providerInvoiceId: 'in_1' }),
+    );
+    const saved = invoicesRepo.save.mock.calls[0][0];
+    expect(saved.subscriptionId).toBe('local-sub-9');
+    expect(saved.amountPaid).toBe(1900);
+    expect(saved.hostedInvoiceUrl).toBe('https://stripe.test/invoice/in_1');
+  });
+
+  it('ignores an invoice event when the customer cannot be resolved to a user', async () => {
+    provider.queueWebhookEvent({
+      id: 'evt_inv_2',
+      type: 'invoice.paid',
+      data: {
+        id: 'in_2',
+        customer: 'cus_unknown',
+        amount_paid: 1900,
+        currency: 'usd',
+        status: 'paid',
+        period_start: 1_700_000_000,
+        period_end: 1_702_592_000,
+      },
+    });
+
+    await service.handle(Buffer.from('{}'), 'valid');
+
+    expect(invoicesRepo.save).not.toHaveBeenCalled();
   });
 });

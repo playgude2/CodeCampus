@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Invoice } from '../entities/invoice.entity';
 import { Plan } from '../entities/plan.entity';
 import { Subscription } from '../entities/subscription.entity';
-import { PlanInterval, SubscriptionStatus } from '../enums/billing.enums';
+import { InvoiceStatus, PlanInterval, SubscriptionStatus } from '../enums/billing.enums';
 
 export class PlanResponseDto {
   @ApiProperty() id!: string;
@@ -47,4 +48,26 @@ export class SubscriptionResponseDto {
 
 export class CheckoutResponseDto {
   @ApiProperty() url!: string;
+}
+
+export class InvoiceResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ enum: InvoiceStatus }) status!: InvoiceStatus;
+  @ApiProperty() amountPaid!: number;
+  @ApiProperty() currency!: string;
+  @ApiProperty() periodStart!: Date;
+  @ApiProperty() periodEnd!: Date;
+  @ApiPropertyOptional({ nullable: true }) hostedInvoiceUrl!: string | null;
+
+  static from(invoice: Invoice): InvoiceResponseDto {
+    return {
+      id: invoice.id,
+      status: invoice.status,
+      amountPaid: invoice.amountPaid,
+      currency: invoice.currency,
+      periodStart: invoice.periodStart,
+      periodEnd: invoice.periodEnd,
+      hostedInvoiceUrl: invoice.hostedInvoiceUrl,
+    };
+  }
 }

@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { BillingConfig } from '../../config/configuration';
+import { Invoice } from './entities/invoice.entity';
 import { Plan } from './entities/plan.entity';
 import { Subscription } from './entities/subscription.entity';
 import { PAYMENT_PROVIDER, PaymentProvider } from './payment/payment-provider.interface';
@@ -18,6 +19,7 @@ export class BillingService {
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
     private readonly subscriptionService: SubscriptionService,
     @InjectRepository(Plan) private readonly plans: Repository<Plan>,
+    @InjectRepository(Invoice) private readonly invoices: Repository<Invoice>,
   ) {
     this.billing = config.getOrThrow<BillingConfig>('billing');
   }
@@ -53,5 +55,9 @@ export class BillingService {
 
   cancelSubscription(userId: string): Promise<Subscription> {
     return this.subscriptionService.cancel(userId);
+  }
+
+  listInvoices(userId: string): Promise<Invoice[]> {
+    return this.invoices.find({ where: { userId }, order: { createdAt: 'DESC' } });
   }
 }

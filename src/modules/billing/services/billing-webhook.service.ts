@@ -1,9 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Invoice } from '../entities/invoice.entity';
 import { Subscription } from '../entities/subscription.entity';
 import { WebhookEvent } from '../entities/webhook-event.entity';
-import { WebhookEventStatus } from '../enums/billing.enums';
+import { InvoiceStatus, WebhookEventStatus } from '../enums/billing.enums';
 import {
   PAYMENT_PROVIDER,
   ParsedWebhookEvent,
@@ -27,6 +28,28 @@ interface SubscriptionLike {
   customer: string;
 }
 
+const INVOICE_STATUS_MAP: Record<string, InvoiceStatus> = {
+  paid: InvoiceStatus.PAID,
+  open: InvoiceStatus.OPEN,
+  draft: InvoiceStatus.OPEN,
+  uncollectible: InvoiceStatus.UNCOLLECTIBLE,
+  void: InvoiceStatus.VOID,
+};
+
+interface InvoiceLike {
+  id: string;
+  customer: string;
+  amount_paid: number;
+  currency: string;
+  status: string;
+  period_start: number;
+  period_end: number;
+  hosted_invoice_url?: string | null;
+  parent?: {
+    subscription_details?: { subscription?: string | { id: string } | null } | null;
+  } | null;
+}
+
 /**
  * Verifies + idempotently dedupes inbound Stripe webhooks, then dispatches
  * to the subscription state machine. Every subscription mutation re-fetches
@@ -43,6 +66,7 @@ export class BillingWebhookService {
     private readonly subscriptionService: SubscriptionService,
     @InjectRepository(WebhookEvent) private readonly events: Repository<WebhookEvent>,
     @InjectRepository(Subscription) private readonly subscriptions: Repository<Subscription>,
+    @InjectRepository(Invoice) private readonly invoices: Repository<Invoice>,
   ) {}
 
   async handle(rawBody: Buffer, signature: string): Promise<void> {
@@ -108,6 +132,9 @@ export class BillingWebhookService {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
         return this.handleSubscriptionMutated(parsed.data as SubscriptionLike);
+      case 'invoice.paid':
+      case 'invoice.payment_failed':
+        return this.handleInvoice(parsed.data as InvoiceLike);
       default:
         // Stripe sends many event types we don't act on (invoice.finalized,
         // payment_method.attached, ...). Silently ignoring unrecognized
@@ -140,5 +167,32 @@ export class BillingWebhookService {
     }
     const snapshot = await this.provider.getSubscription(raw.id);
     await this.subscriptionService.upsertFromSnapshot(userId, snapshot);
+  }
+
+  private async handleInvoice(invoice: InvoiceLike): Promise<void> {
+    const userId = await this.provider.getCustomerUserId(invoice.customer);
+    if (!userId) {
+      this.logger.warn(`Cannot resolve a userId for invoice ${invoice.id} — ignoring`);
+      return;
+    }
+
+    const subRef = invoice.parent?.subscription_details?.subscription;
+    const subscriptionId = typeof subRef === 'string' ? subRef : (subRef?.id ?? null);
+    const localSub = subscriptionId
+      ? await this.subscriptions.findOneBy({ providerSubscriptionId: subscriptionId })
+      : null;
+
+    const existing = await this.invoices.findOneBy({ providerInvoiceId: invoice.id });
+    const row = existing ?? this.invoices.create({ userId, providerInvoiceId: invoice.id });
+
+    row.subscriptionId = localSub?.id ?? null;
+    row.amountPaid = invoice.amount_paid;
+    row.currency = invoice.currency;
+    row.status = INVOICE_STATUS_MAP[invoice.status] ?? InvoiceStatus.OPEN;
+    row.periodStart = new Date(invoice.period_start * 1000);
+    row.periodEnd = new Date(invoice.period_end * 1000);
+    row.hostedInvoiceUrl = invoice.hosted_invoice_url ?? null;
+
+    await this.invoices.save(row);
   }
 }

@@ -16,6 +16,8 @@ interface ErrorBody {
   errors?: unknown;
   path: string;
   timestamp: string;
+  /** Custom fields a thrown exception's object body carried (e.g. `reason`, for deep-linking). */
+  [key: string]: unknown;
 }
 
 /**
@@ -35,6 +37,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let message = 'Internal server error';
     let error = 'InternalServerError';
     let errors: unknown;
+    let extra: Record<string, unknown> | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -47,6 +50,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = this.stringifyMessage(body.message) ?? exception.message;
         error = (body.error as string) ?? error;
         if (Array.isArray(body.message)) errors = body.message;
+        // Anything beyond the well-known Nest fields is caller-supplied
+        // structured data (e.g. `{ reason: 'entitlement_required' }` for a
+        // frontend deep-link) — pass it through instead of silently dropping it.
+        const { message: _m, error: _e, statusCode: _s, ...rest } = body;
+        if (Object.keys(rest).length) extra = rest;
       }
     } else if (exception instanceof QueryFailedError) {
       // Map unique-violation etc. to 409 without leaking SQL internals.
@@ -69,6 +77,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       error,
       ...(errors ? { errors } : {}),
+      ...extra,
       path: request.url,
       timestamp: new Date().toISOString(),
     };

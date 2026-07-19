@@ -8,6 +8,7 @@ import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { BillingService } from './billing.service';
 import {
   CheckoutResponseDto,
+  InvoiceResponseDto,
   PlanResponseDto,
   SubscriptionResponseDto,
 } from './dto/billing-response.dto';
@@ -54,6 +55,13 @@ export class BillingController {
   ): Promise<SubscriptionResponseDto> {
     const sub = await this.billing.cancelSubscription(actor.id);
     return SubscriptionResponseDto.from(sub);
+  }
+
+  @ApiCookieAuth('access_token')
+  @Get('invoices')
+  async listInvoices(@CurrentUser() actor: AuthenticatedUser): Promise<InvoiceResponseDto[]> {
+    const invoices = await this.billing.listInvoices(actor.id);
+    return invoices.map(InvoiceResponseDto.from);
   }
 
   // No auth (Stripe can't send our cookies) — integrity comes entirely from
