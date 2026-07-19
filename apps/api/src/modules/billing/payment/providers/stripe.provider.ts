@@ -7,13 +7,31 @@ import {
 } from '../payment-provider.interface';
 
 export class StripeProvider implements PaymentProvider {
-  private readonly client: Stripe;
+  private clientInstance: Stripe | null = null;
 
   constructor(
-    secretKey: string,
+    private readonly secretKey: string,
     private readonly webhookSecret: string,
-  ) {
-    this.client = new Stripe(secretKey);
+  ) {}
+
+  /**
+   * Constructed lazily, not in the constructor: `STRIPE_SECRET_KEY` is
+   * deliberately optional at boot (Joi allows an empty string, matching
+   * `LLM_API_KEY`'s pattern) so the app can start without billing configured
+   * yet — the Stripe SDK's own constructor throws synchronously on an empty
+   * key, which would otherwise crash the entire process at DI-instantiation
+   * time just because billing wasn't set up.
+   */
+  private get client(): Stripe {
+    if (!this.secretKey) {
+      throw new Error(
+        'STRIPE_SECRET_KEY is not configured — billing/subscription features are unavailable',
+      );
+    }
+    if (!this.clientInstance) {
+      this.clientInstance = new Stripe(this.secretKey);
+    }
+    return this.clientInstance;
   }
 
   async createCustomer(userId: string, email: string): Promise<string> {

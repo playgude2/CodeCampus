@@ -66,11 +66,11 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: apps/api/Dockerfile
     container_name: codecampus_api
     command: ['node', 'dist/main.js']
     env_file:
-      - .env
+      - apps/api/.env
     environment:
       DATABASE_HOST: postgres
       REDIS_HOST: redis
@@ -89,11 +89,11 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: apps/api/Dockerfile
     container_name: codecampus_worker
     command: ['node', 'dist/worker.js']
     env_file:
-      - .env
+      - apps/api/.env
     environment:
       DATABASE_HOST: postgres
       REDIS_HOST: redis
