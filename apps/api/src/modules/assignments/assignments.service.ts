@@ -290,6 +290,19 @@ export class AssignmentsService {
     return ap;
   }
 
+  /** Everything the code-editor screen needs to bootstrap: statement, sample
+   * testcases, and per-language starter code (never driverCode — the judge
+   * harness is never sent to the client). */
+  async getEditorBootstrap(apId: string, actor: AuthenticatedUser): Promise<AssignmentProblem> {
+    const ap = await this.assignmentProblems.findOne({
+      where: { id: apId },
+      relations: { problem: { tags: true, testCases: true }, languageTemplates: true },
+    });
+    if (!ap) throw new NotFoundException('Assignment problem not found');
+    await this.findOne(ap.assignmentId, actor); // view permission + status visibility
+    return ap;
+  }
+
   async myActiveDeadlines(actor: AuthenticatedUser): Promise<Assignment[]> {
     const qb = this.assignments
       .createQueryBuilder('a')

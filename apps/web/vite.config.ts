@@ -17,7 +17,10 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      '/ws': {
+      // Socket.IO's actual HTTP/WS handshake path is always /socket.io/
+      // regardless of namespace (namespaces multiplex over the one engine.io
+      // connection, they aren't a URL path) — proxy that, not "/ws".
+      '/socket.io': {
         target: 'ws://localhost:3000',
         ws: true,
       },

@@ -16,7 +16,11 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AssignmentsService } from './assignments.service';
-import { AssignmentProblemResponseDto, AssignmentResponseDto } from './dto/assignment-response.dto';
+import {
+  AssignmentProblemEditorResponseDto,
+  AssignmentProblemResponseDto,
+  AssignmentResponseDto,
+} from './dto/assignment-response.dto';
 import {
   CloneProblemDto,
   CreateAssignmentDto,
@@ -51,6 +55,16 @@ export class AssignmentsController {
   }
 
   // ---- assignment-problem edit/delete (static segment, before :id) ----
+
+  @Get('problems/:apId/editor')
+  async editorBootstrap(
+    @Param('apId', ParseUUIDPipe) apId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return AssignmentProblemEditorResponseDto.from(
+      await this.assignments.getEditorBootstrap(apId, actor),
+    );
+  }
 
   @Patch('problems/:apId')
   @Roles(Role.ADMIN, Role.PROFESSOR)
