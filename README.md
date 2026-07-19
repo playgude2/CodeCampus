@@ -20,6 +20,7 @@ Prerequisites: Node.js ≥ 20, [pnpm](https://pnpm.io), Docker.
 ```bash
 pnpm install                 # one lockfile, one node_modules, for every app
 cp apps/api/.env.sample apps/api/.env    # fill in secrets for local dev
+cp apps/web/.env.sample apps/web/.env
 
 docker compose up -d          # postgres, redis, piston, api, worker
 pnpm --filter @codecampus/api migration:run
