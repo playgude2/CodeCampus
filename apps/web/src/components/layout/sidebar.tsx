@@ -7,6 +7,8 @@ import {
   GraduationCap,
   FileCode2,
   ClipboardList,
+  ClipboardCheck,
+  Terminal,
   Sparkles,
   CreditCard,
 } from 'lucide-react';
@@ -28,6 +30,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: ClipboardList,
     roles: [Role.ADMIN, Role.PROFESSOR],
   },
+  {
+    to: '/home/grading',
+    label: 'Gradebook',
+    icon: ClipboardCheck,
+    roles: [Role.ADMIN, Role.PROFESSOR],
+  },
+  { to: '/home/playground', label: 'Playground', icon: Terminal },
   { to: '/home/ai', label: 'AI Generate', icon: Sparkles },
   { to: '/home/billing', label: 'Billing', icon: CreditCard },
 ];
