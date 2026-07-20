@@ -19,6 +19,7 @@ import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { SubmissionsModule } from './modules/submissions/submissions.module';
 import { CodeExecutionModule } from './modules/code-execution/code-execution.module';
 import { GradingModule } from './modules/grading/grading.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PlaygroundModule } from './modules/playground/playground.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -59,6 +60,7 @@ import { BillingModule } from './modules/billing/billing.module';
     SubmissionsModule,
     CodeExecutionModule,
     GradingModule,
+    NotificationsModule,
     PlaygroundModule,
     DemoModule,
     BillingModule,

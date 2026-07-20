@@ -4,8 +4,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import {
+  ASSIGNMENT_GRADES_PUBLISHED,
+  ASSIGNMENT_PROBLEM_ADDED,
+  ASSIGNMENT_PUBLISHED,
+  AssignmentGradesPublishedEvent,
+  AssignmentProblemAddedEvent,
+  AssignmentPublishedEvent,
+} from '../../common/events/notification-events';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { Language } from '../../common/enums/language.enum';
 import { Role } from '../../common/enums/role.enum';
@@ -42,6 +51,7 @@ export class AssignmentsService {
     private readonly libraryTemplates: Repository<LibraryProblemTemplate>,
     private readonly classroomsService: ClassroomsService,
     private readonly dataSource: DataSource,
+    private readonly emitter: EventEmitter2,
   ) {}
 
   async create(dto: CreateAssignmentDto, actor: AuthenticatedUser): Promise<Assignment> {
@@ -134,7 +144,15 @@ export class AssignmentsService {
   async publish(id: string, actor: AuthenticatedUser): Promise<Assignment> {
     const a = await this.transition(id, actor, AssignmentStatus.DRAFT, AssignmentStatus.ACTIVE);
     a.publishedAt = new Date();
-    return this.assignments.save(a);
+    const saved = await this.assignments.save(a);
+    // DRAFT → ACTIVE is the moment the assignment first becomes student-visible.
+    this.emitter.emit(ASSIGNMENT_PUBLISHED, {
+      assignmentId: saved.id,
+      classroomId: saved.classroomId,
+      title: saved.title,
+      actorId: actor.id,
+    } satisfies AssignmentPublishedEvent);
+    return saved;
   }
 
   complete(id: string, actor: AuthenticatedUser): Promise<Assignment> {
@@ -143,13 +161,21 @@ export class AssignmentsService {
     );
   }
 
-  publishGrades(id: string, actor: AuthenticatedUser): Promise<Assignment> {
-    return this.transition(
+  async publishGrades(id: string, actor: AuthenticatedUser): Promise<Assignment> {
+    const a = await this.transition(
       id,
       actor,
       AssignmentStatus.COMPLETED,
       AssignmentStatus.GRADE_PUBLISHED,
-    ).then((a) => this.assignments.save(a));
+    );
+    const saved = await this.assignments.save(a);
+    this.emitter.emit(ASSIGNMENT_GRADES_PUBLISHED, {
+      assignmentId: saved.id,
+      classroomId: saved.classroomId,
+      title: saved.title,
+      actorId: actor.id,
+    } satisfies AssignmentGradesPublishedEvent);
+    return saved;
   }
 
   private async transition(
@@ -197,7 +223,9 @@ export class AssignmentsService {
     const apId = await this.dataSource.transaction((m) =>
       this.attachProblem(m, assignment.id, source.id, dto.score, dto.languages, true),
     );
-    return this.getAssignmentProblem(apId);
+    const ap = await this.getAssignmentProblem(apId);
+    this.notifyProblemAdded(assignment, ap, actor.id);
+    return ap;
   }
 
   async cloneProblem(
@@ -253,7 +281,30 @@ export class AssignmentsService {
         source.id,
       );
     });
-    return this.getAssignmentProblem(apId);
+    const ap = await this.getAssignmentProblem(apId);
+    this.notifyProblemAdded(assignment, ap, actor.id);
+    return ap;
+  }
+
+  /**
+   * Notify enrolled students/graders when a problem is added to an assignment
+   * they can already see. DRAFT/SCHEDULED attachments notify no one (the
+   * assignment isn't visible yet — the publish event covers that later).
+   */
+  private notifyProblemAdded(
+    assignment: Assignment,
+    ap: AssignmentProblem,
+    actorId: string,
+  ): void {
+    if (!VISIBLE_TO_STUDENTS.includes(assignment.status)) return;
+    this.emitter.emit(ASSIGNMENT_PROBLEM_ADDED, {
+      assignmentId: assignment.id,
+      assignmentProblemId: ap.id,
+      classroomId: assignment.classroomId,
+      assignmentTitle: assignment.title,
+      problemTitle: ap.problem?.title ?? 'A new problem',
+      actorId,
+    } satisfies AssignmentProblemAddedEvent);
   }
 
   async editAssignmentProblem(

@@ -1,15 +1,28 @@
 import { useMemo } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { EmptyState } from '@/components/shared/empty-state';
 import { scorePercent, type StudentScore } from '../types';
 
-/** Percentage buckets students are distributed into. */
+/**
+ * Percentage buckets students are distributed into. `color` runs a sequential
+ * red→green performance scale so low/high mastery reads at a glance (the x-axis
+ * ordering makes this an ordered scale, not arbitrary categories).
+ */
 const BUCKETS = [
-  { label: '0–20%', min: 0, max: 20 },
-  { label: '20–40%', min: 20, max: 40 },
-  { label: '40–60%', min: 40, max: 60 },
-  { label: '60–80%', min: 60, max: 80 },
-  { label: '80–100%', min: 80, max: 100 },
+  { label: '0–20%', min: 0, max: 20, color: 'hsl(0 72% 51%)' },
+  { label: '20–40%', min: 20, max: 40, color: 'hsl(25 90% 55%)' },
+  { label: '40–60%', min: 40, max: 60, color: 'hsl(45 92% 48%)' },
+  { label: '60–80%', min: 60, max: 80, color: 'hsl(190 70% 45%)' },
+  { label: '80–100%', min: 80, max: 100, color: 'hsl(145 60% 42%)' },
 ] as const;
 
 interface ChartDatum {
@@ -68,12 +81,11 @@ export function ScoreDistributionChart({ students }: { students: StudentScore[] 
             labelStyle={{ color: 'var(--color-foreground)' }}
             formatter={(value) => [value, 'Students']}
           />
-          <Bar
-            dataKey="students"
-            fill="var(--color-primary)"
-            radius={[4, 4, 0, 0]}
-            maxBarSize={64}
-          />
+          <Bar dataKey="students" radius={[4, 4, 0, 0]} maxBarSize={64}>
+            {data.map((_, i) => (
+              <Cell key={i} fill={BUCKETS[i].color} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

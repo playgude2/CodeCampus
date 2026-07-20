@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Editor } from '@monaco-editor/react';
+import { useTheme } from 'next-themes';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { Loader2, Play, Send } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock, Play, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,9 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DifficultyBadge } from '@/components/shared/difficulty-badge';
+import { Logo } from '@/components/shared/logo';
+import { MarkdownView } from '@/components/shared/markdown-view';
 import { VerdictBadge } from '@/components/shared/verdict-badge';
 import { editorApi } from '../api/editor.api';
 import { useSubmissionSocket } from '../hooks/use-submission-socket';
@@ -23,6 +27,7 @@ import { usePersistedCode } from '../hooks/use-persisted-code';
 import { parseApiError } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import type { Language } from '@/types/common';
+import { Difficulty } from '@/types/problem';
 import { TERMINAL_STATUSES, type RunResult } from '@/types/submission';
 
 const LANGUAGE_LABELS: Record<Language, string> = {
@@ -41,6 +46,14 @@ const MONACO_LANGUAGE: Record<Language, string> = {
 
 export function CodeEditorPage() {
   const { apId } = useParams<{ apId: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // The assignments panel appends ?mode=review when the assignment isn't ACTIVE:
+  // the backend still allows Run (not status-gated) but rejects Submit, so we
+  // mirror that contract by disabling Submit and surfacing a banner.
+  const reviewMode = searchParams.get('mode') === 'review';
+  const { resolvedTheme } = useTheme();
+  const monacoTheme = resolvedTheme === 'dark' ? 'vs-dark' : 'light';
   const [language, setLanguage] = useState<Language | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
@@ -53,9 +66,7 @@ export function CodeEditorPage() {
   });
 
   // Derived, not stored: `language` only holds an explicit user override;
-  // absent one, fall back to the bootstrap's first template. Computing this
-  // during render (rather than via a `useEffect` + `setLanguage`) avoids an
-  // extra render pass once the query resolves.
+  // absent one, fall back to the bootstrap's first template.
   const effectiveLanguage = language ?? bootstrap?.templates[0]?.language ?? null;
 
   const starterCode = useMemo(
@@ -91,6 +102,7 @@ export function CodeEditorPage() {
   }
 
   function handleSubmit() {
+    if (reviewMode) return;
     if (!submitMutation.isPending) submitMutation.mutate();
   }
 
@@ -113,7 +125,7 @@ export function CodeEditorPage() {
 
   if (isLoading || !bootstrap) {
     return (
-      <div className="flex h-svh items-center justify-center p-6">
+      <div className="flex h-svh items-center justify-center bg-background p-6">
         <Skeleton className="h-full w-full" />
       </div>
     );
@@ -123,9 +135,20 @@ export function CodeEditorPage() {
     !!submissionId && (!liveStatus || !TERMINAL_STATUSES.includes(liveStatus.status));
 
   return (
-    <div className="flex h-svh flex-col">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
-        <h1 className="truncate text-sm font-medium">{bootstrap.title}</h1>
+    <div className="flex h-svh flex-col bg-background text-foreground">
+      <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Go back"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+          <Logo variant="mark" className="size-7" />
+          <h1 className="truncate text-sm font-semibold">{bootstrap.title}</h1>
+        </div>
         <div className="flex items-center gap-2">
           {effectiveLanguage && (
             <Select value={effectiveLanguage} onValueChange={(v) => setLanguage(v as Language)}>
@@ -141,7 +164,7 @@ export function CodeEditorPage() {
               </SelectContent>
             </Select>
           )}
-          <Button size="sm" variant="outline" onClick={handleRun} disabled={runMutation.isPending}>
+          <Button variant="outline" onClick={handleRun} disabled={runMutation.isPending} title="Run (⌘/Ctrl + ')">
             {runMutation.isPending ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
@@ -150,10 +173,10 @@ export function CodeEditorPage() {
             Run
           </Button>
           <Button
-            size="sm"
             className="bg-brand text-brand-foreground hover:bg-brand/90"
             onClick={handleSubmit}
-            disabled={submitMutation.isPending || !!isJudging}
+            disabled={submitMutation.isPending || !!isJudging || reviewMode}
+            title={reviewMode ? 'Closed for submissions' : 'Submit (⌘/Ctrl + Enter)'}
           >
             {submitMutation.isPending || isJudging ? (
               <Loader2 className="size-4 animate-spin" />
@@ -165,18 +188,27 @@ export function CodeEditorPage() {
         </div>
       </div>
 
+      {reviewMode && (
+        <div className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+          <Lock className="size-3.5" />
+          This assignment is closed for submissions — you can still run your code against the sample
+          cases.
+        </div>
+      )}
+
       <Group orientation="horizontal" className="flex-1">
         <Panel defaultSize="40%" minSize="25%">
-          <div className="custom-scrollbar h-full overflow-y-auto p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Badge className="capitalize">{bootstrap.difficulty}</Badge>
+          <div className="custom-scrollbar h-full overflow-y-auto p-5">
+            <h2 className="font-heading text-xl font-bold tracking-tight">{bootstrap.title}</h2>
+            <div className="mt-2 mb-4 flex flex-wrap items-center gap-1.5">
+              <DifficultyBadge difficulty={bootstrap.difficulty as Difficulty} />
               {bootstrap.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
+                <Badge key={tag} variant="secondary">
                   {tag}
                 </Badge>
               ))}
             </div>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">{bootstrap.body}</div>
+            <MarkdownView>{bootstrap.body}</MarkdownView>
           </div>
         </Panel>
 
@@ -190,7 +222,7 @@ export function CodeEditorPage() {
                 language={effectiveLanguage ? MONACO_LANGUAGE[effectiveLanguage] : 'plaintext'}
                 value={code}
                 onChange={(value) => setCode(value ?? '')}
-                theme="vs-dark"
+                theme={monacoTheme}
                 options={{ minimap: { enabled: false }, fontSize: 14, contextmenu: false }}
               />
             </Panel>
@@ -215,7 +247,7 @@ export function CodeEditorPage() {
                   >
                     <div className="space-y-3">
                       {bootstrap.sampleTestCases.map((tc, i) => (
-                        <div key={i} className="rounded-md border border-border p-3 text-sm">
+                        <div key={i} className="rounded-lg border border-border p-3 text-sm">
                           <p className="font-medium">Case {i + 1}</p>
                           <p className="mt-1 font-mono text-xs text-muted-foreground">
                             Input: {tc.inputData}
@@ -236,7 +268,7 @@ export function CodeEditorPage() {
                       <div className="space-y-2">
                         <VerdictBadge status={runResult.status} />
                         {runResult.results.map((r, i) => (
-                          <div key={i} className="rounded-md border border-border p-3 text-sm">
+                          <div key={i} className="rounded-lg border border-border p-3 text-sm">
                             <div className="flex items-center justify-between">
                               <p className="font-medium">Case {i + 1}</p>
                               <VerdictBadge status={r.status} />
@@ -266,7 +298,7 @@ export function CodeEditorPage() {
                                 <div
                                   key={tc.ordinal}
                                   className={cn(
-                                    'flex items-center justify-between rounded-md border border-border p-2 text-sm',
+                                    'flex items-center justify-between rounded-lg border border-border p-2 text-sm',
                                   )}
                                 >
                                   <span>Test case {tc.ordinal + 1}</span>

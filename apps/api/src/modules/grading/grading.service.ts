@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -6,9 +12,11 @@ import {
   SUBMISSION_FINALIZED,
   SubmissionFinalizedEvent,
 } from '../../common/events/submission-events';
+import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AssignmentProblem } from '../assignments/entities/assignment-problem.entity';
 import { Assignment } from '../assignments/entities/assignment.entity';
+import { AssignmentStatus } from '../assignments/enums/assignment-status.enum';
 import { ClassroomsService } from '../classrooms/classrooms.service';
 import { Classroom } from '../classrooms/entities/classroom.entity';
 import { Submission } from '../submissions/entities/submission.entity';
@@ -73,10 +81,9 @@ export class GradingService {
   }
 
   async getStudentScore(assignmentId: string, actor: AuthenticatedUser) {
-    // Self-service read (a student reading their own score) — no staff/grader
-    // gate needed, but the assignment must actually exist (404, not a silent
-    // zero-row response for a bogus id).
-    await this.assertAssignmentExists(assignmentId);
+    // Self-service read (a student reading their own score). Product rule:
+    // students only see scores/feedback once the professor publishes grades.
+    await this.assertGradesVisible(assignmentId, actor);
     return this.buildStudentScore(assignmentId, actor.id);
   }
 
@@ -174,7 +181,7 @@ export class GradingService {
   }
 
   async getAssignmentScore(assignmentId: string, actor: AuthenticatedUser) {
-    await this.assertAssignmentExists(assignmentId);
+    await this.assertGradesVisible(assignmentId, actor);
     return this.readAssignmentScore(assignmentId, actor.id);
   }
 
@@ -263,9 +270,21 @@ export class GradingService {
     return existing ?? { finalScore: 0, feedback: '' };
   }
 
-  private async assertAssignmentExists(assignmentId: string): Promise<void> {
-    const exists = await this.assignments.exist({ where: { id: assignmentId } });
-    if (!exists) throw new NotFoundException('Assignment not found');
+  /**
+   * Gate for student self-service score reads. The assignment must exist, and
+   * unless the caller is an admin, its grades must be published
+   * (GRADE_PUBLISHED). Staff use the separate students-scores endpoint, which
+   * has its own staff/grader gate, so this only affects students/graders.
+   */
+  private async assertGradesVisible(
+    assignmentId: string,
+    actor: AuthenticatedUser,
+  ): Promise<void> {
+    const assignment = await this.assignments.findOne({ where: { id: assignmentId } });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (actor.role !== Role.ADMIN && assignment.status !== AssignmentStatus.GRADE_PUBLISHED) {
+      throw new ForbiddenException('Grades have not been published yet');
+    }
   }
 
   private async recomputeAssignmentScore(assignmentId: string, userId: string): Promise<void> {

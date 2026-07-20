@@ -50,86 +50,89 @@
 }
 
 /*
- * Brand palette: sky-800 primary + a warm-orange accent for CTAs/highlights.
- * Kept as a separate --brand/--brand-foreground pair rather than repurposing
- * shadcn's own --accent (which many built-in components use for subtle
- * hover/selected states) — mixing the two would make hover states look like
- * mis-fired brand highlights.
+ * CodeCampus brand system.
+ *   --primary : logo navy  #1D5A87  (hsl 205 65% 32%)
+ *   --brand   : logo amber #F5A623  (hsl 37 91% 55%) — used for CTAs/highlights,
+ *               kept separate from shadcn's --accent so component hover states
+ *               don't read as brand highlights. --brand-foreground is a deep navy
+ *               so text on the amber CTA meets contrast.
+ * Neutrals carry a faint cool (blue) cast so greys sit under the navy primary
+ * instead of looking sterile. Dark mode is navy-tinted to match the dark-variant
+ * logo (#0F2438), and the sidebar rail stays deep navy in BOTH themes.
  */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: hsl(203 90% 28%);
-  --primary-foreground: hsl(204 92% 94%);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --brand: hsl(27 96% 61%);
-  --brand-foreground: hsl(31 97% 72%);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: hsl(203 90% 28% / 0.5);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(205 30% 12%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(205 30% 12%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(205 30% 12%);
+  --primary: hsl(205 65% 32%);
+  --primary-foreground: hsl(204 92% 96%);
+  --secondary: hsl(205 32% 96%);
+  --secondary-foreground: hsl(205 40% 20%);
+  --muted: hsl(205 28% 96%);
+  --muted-foreground: hsl(205 12% 42%);
+  --accent: hsl(205 32% 94%);
+  --accent-foreground: hsl(205 45% 22%);
+  --brand: hsl(37 91% 55%);
+  --brand-foreground: hsl(205 80% 12%);
+  --destructive: hsl(0 72% 48%);
+  --border: hsl(205 24% 89%);
+  --input: hsl(205 24% 89%);
+  --ring: hsl(205 65% 32% / 0.45);
+  --chart-1: hsl(205 70% 45%);
+  --chart-2: hsl(37 91% 55%);
+  --chart-3: hsl(172 55% 40%);
+  --chart-4: hsl(265 55% 62%);
+  --chart-5: hsl(145 55% 42%);
   --radius: 0.625rem;
-  --sidebar: hsl(203 90% 28%);
-  --sidebar-foreground: hsl(204 92% 94%);
-  --sidebar-primary: hsl(203 90% 22%);
-  --sidebar-primary-foreground: hsl(204 92% 94%);
-  --sidebar-accent: hsl(203 75% 24%);
-  --sidebar-accent-foreground: hsl(204 92% 94%);
-  --sidebar-border: hsl(203 75% 24%);
-  --sidebar-ring: hsl(27 96% 61%);
+  --sidebar: hsl(206 55% 13%);
+  --sidebar-foreground: hsl(205 38% 86%);
+  --sidebar-primary: hsl(37 91% 55%);
+  --sidebar-primary-foreground: hsl(206 55% 12%);
+  --sidebar-accent: hsl(206 44% 21%);
+  --sidebar-accent-foreground: hsl(0 0% 100%);
+  --sidebar-border: hsl(206 40% 22%);
+  --sidebar-ring: hsl(37 91% 55%);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  /* Dark mode deliberately does NOT keep sky-800 as primary (a dark blue on
-     an already-dark background loses contrast) — it flips to a light
-     neutral, matching how the reference design's dark mode behaves. */
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --brand: hsl(27 90% 55%);
-  --brand-foreground: hsl(31 97% 78%);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: hsl(27 96% 61%);
-  --sidebar-primary-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: hsl(206 44% 8%);
+  --foreground: hsl(205 30% 92%);
+  --card: hsl(206 40% 12%);
+  --card-foreground: hsl(205 30% 92%);
+  --popover: hsl(206 42% 11%);
+  --popover-foreground: hsl(205 30% 92%);
+  /* Dark mode keeps a pale ice-blue primary (matching the dark-variant logo)
+     instead of a dark navy that would lose contrast on the navy surface. */
+  --primary: hsl(202 55% 78%);
+  --primary-foreground: hsl(206 55% 12%);
+  --secondary: hsl(206 34% 18%);
+  --secondary-foreground: hsl(205 30% 92%);
+  --muted: hsl(206 34% 16%);
+  --muted-foreground: hsl(205 20% 64%);
+  --accent: hsl(206 34% 19%);
+  --accent-foreground: hsl(205 30% 92%);
+  --brand: hsl(37 92% 58%);
+  --brand-foreground: hsl(206 60% 10%);
+  --destructive: hsl(0 68% 58%);
+  --border: hsl(206 30% 22%);
+  --input: hsl(206 30% 24%);
+  --ring: hsl(202 55% 60%);
+  --chart-1: hsl(202 72% 62%);
+  --chart-2: hsl(37 92% 58%);
+  --chart-3: hsl(172 55% 50%);
+  --chart-4: hsl(265 60% 70%);
+  --chart-5: hsl(145 55% 52%);
+  --sidebar: hsl(206 52% 10%);
+  --sidebar-foreground: hsl(205 38% 86%);
+  --sidebar-primary: hsl(37 91% 55%);
+  --sidebar-primary-foreground: hsl(206 55% 12%);
+  --sidebar-accent: hsl(206 40% 17%);
+  --sidebar-accent-foreground: hsl(0 0% 100%);
+  --sidebar-border: hsl(206 34% 19%);
+  --sidebar-ring: hsl(37 91% 55%);
 }
 
 @layer base {
@@ -138,6 +141,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
@@ -159,5 +165,12 @@
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
+  }
+  /* Subtle brand grid backdrop for hero/empty surfaces. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
 }

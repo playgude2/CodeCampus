@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -14,6 +13,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { AuthLayout } from '../components/auth-layout';
 import { useAuth } from '../context/auth-context';
 import { parseApiError } from '@/lib/api-client';
 
@@ -52,89 +52,80 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">
-            <span className="text-brand">Code</span>Campus
-          </CardTitle>
-          <CardDescription>Create your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First name</FormLabel>
-                      <FormControl>
-                        <Input autoComplete="given-name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last name</FormLabel>
-                      <FormControl>
-                        <Input autoComplete="family-name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" autoComplete="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" autoComplete="new-password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {formError && <p className="text-sm text-destructive">{formError}</p>}
-              <Button
-                type="submit"
-                className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting ? 'Creating account…' : 'Create account'}
-              </Button>
-            </form>
-          </Form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link to="/login" className="font-medium text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthLayout title="Create your account" description="Start solving problems on CodeCampus.">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="firstName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>First name</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="given-name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Last name</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="family-name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" autoComplete="email" placeholder="you@school.edu" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input type="password" autoComplete="new-password" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
+            disabled={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting ? 'Creating account…' : 'Create account'}
+          </Button>
+        </form>
+      </Form>
+      <p className="text-center text-sm text-muted-foreground">
+        Already have an account?{' '}
+        <Link to="/login" className="font-medium text-primary hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

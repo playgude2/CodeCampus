@@ -38,3 +38,6 @@ skills-lock.json
 # misc
 *.pem
 tmp/
+
+# graphify knowledge-graph artifacts
+graphify-out/
